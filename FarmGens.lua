@@ -107,10 +107,10 @@ local function teleportToRandomServer()
     print("Failed to find a server after " .. maxAttempts .. " attempts.")
 end
 
--- Перевірка таймера раунду для телепортації
-task.delay(5, function()
+-- Перевірка таймера раунду для телепортації (збільшено затримку)
+task.delay(15, function()
     pcall(function()
-        local timer = Players.LocalPlayer.PlayerGui:WaitForChild("RoundTimer").Main.Time.ContentText
+        local timer = Players.LocalPlayer.PlayerGui:WaitForChild("RoundTimer", 10).Main.Time.ContentText
         local minutes, seconds = timer:match("(%d+):(%d+)")
         local totalSeconds = tonumber(minutes) * 60 + tonumber(seconds)
         print(totalSeconds .. " seconds left until round ends.")
@@ -170,7 +170,7 @@ local function createNode(position)
     part.Position = position + Vector3.new(0, 1.5, 0)
     part.Parent = workspace
     game:GetService("Debris"):AddItem(part, 15)
-    return part -- Повертаємо part для подальшого очищення
+    return part
 end
 
 -- Пошук шляху до генератора з вузлами для дебагу
@@ -192,20 +192,20 @@ local function PathFinding(generator)
     local waypoints = path:GetWaypoints()
     if #waypoints <= 1 then return false end
 
-    local activeNodes = {} -- Зберігаємо вузли для очищення
+    local activeNodes = {}
     for _, waypoint in ipairs(waypoints) do
-        local node = createNode(waypoint.Position) -- Створюємо вузол для дебагу
+        local node = createNode(waypoint.Position)
         table.insert(activeNodes, node)
         
         humanoid:MoveTo(waypoint.Position)
         local reached = humanoid.MoveToFinished:Wait(5)
         if not reached then
-            for _, n in ipairs(activeNodes) do n:Destroy() end -- Очищаємо вузли при невдачі
+            for _, n in ipairs(activeNodes) do n:Destroy() end
             return false
         end
     end
 
-    for _, node in ipairs(activeNodes) do node:Destroy() end -- Очищаємо всі вузли після успіху
+    for _, node in ipairs(activeNodes) do node:Destroy() end
     return true
 end
 
@@ -270,12 +270,20 @@ local function DoAllGenerators()
     teleportToRandomServer()
 end
 
--- Перевірка входу в гру
+-- Перевірка входу в гру з дебагом
 local function AmIInGameYet()
-    local timeout = 30
+    local timeout = 60
     local elapsed = 0
     while elapsed < timeout do
-        if workspace.Players.Survivors:FindFirstChild(Players.LocalPlayer.Name) then
+        local character = Players.LocalPlayer.Character
+        local survivorsFolder = workspace.Players:FindFirstChild("Survivors")
+        print("Checking if player is in game... Elapsed: " .. elapsed .. "s")
+        print("Character exists: " .. (character and "Yes" or "No"))
+        print("Survivors folder exists: " .. (survivorsFolder and "Yes" or "No"))
+        print("Team: " .. (Players.LocalPlayer.Team and Players.LocalPlayer.Team.Name or "None"))
+        
+        if character and character.Parent and survivorsFolder and survivorsFolder:FindFirstChild(Players.LocalPlayer.Name) then
+            print("Player detected in Survivors!")
             task.wait(4)
             local VIM = game:GetService("VirtualInputManager")
             VIM:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, nil)
@@ -285,7 +293,8 @@ local function AmIInGameYet()
         task.wait(1)
         elapsed = elapsed + 1
     end
-    print("Timeout: Player not detected in game.")
+    print("Timeout: Player not detected in Survivors after " .. timeout .. " seconds.")
+    teleportToRandomServer()
 end
 
 -- Перевірка смерті гравця
