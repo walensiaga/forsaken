@@ -270,30 +270,47 @@ local function DoAllGenerators()
     teleportToRandomServer()
 end
 
--- Перевірка входу в гру з дебагом
+-- Перевірка входу в гру з перевіркою Spectating
 local function AmIInGameYet()
+    -- Чекаємо, поки персонаж з’явиться
+    Players.LocalPlayer.CharacterAdded:Wait()
+    local character = Players.LocalPlayer.Character
+    print("Character loaded!")
+
     local timeout = 60
     local elapsed = 0
     while elapsed < timeout do
-        local character = Players.LocalPlayer.Character
-        local survivorsFolder = workspace.Players:FindFirstChild("Survivors")
+        local spectatingFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Spectating")
         print("Checking if player is in game... Elapsed: " .. elapsed .. "s")
         print("Character exists: " .. (character and "Yes" or "No"))
-        print("Survivors folder exists: " .. (survivorsFolder and "Yes" or "No"))
+        print("Character parent: " .. (character and character.Parent and character.Parent.Name or "None"))
+        print("Spectating folder exists: " .. (spectatingFolder and "Yes" or "No"))
         print("Team: " .. (Players.LocalPlayer.Team and Players.LocalPlayer.Team.Name or "None"))
         
-        if character and character.Parent and survivorsFolder and survivorsFolder:FindFirstChild(Players.LocalPlayer.Name) then
-            print("Player detected in Survivors!")
+        -- Дебаг: виводимо, де знаходиться персонаж
+        if character and character.Parent then
+            print("Character is in: " .. character.Parent:GetFullName())
+        end
+
+        -- Перевіряємо, чи гравець НЕ в Spectating
+        if character and character.Parent and spectatingFolder and not spectatingFolder:FindFirstChild(Players.LocalPlayer.Name) then
+            print("Player is not in Spectating! Assuming in game.")
             task.wait(4)
             local VIM = game:GetService("VirtualInputManager")
             VIM:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, nil)
             DoAllGenerators()
             return
         end
+
+        -- Якщо гравець у Spectating, чекаємо
+        if spectatingFolder and spectatingFolder:FindFirstChild(Players.LocalPlayer.Name) then
+            print("Player is in Spectating (lobby). Waiting to join game...")
+        end
+
         task.wait(1)
         elapsed = elapsed + 1
     end
-    print("Timeout: Player not detected in Survivors after " .. timeout .. " seconds.")
+    print("Timeout: Player still in Spectating after " .. timeout .. " seconds.")
     teleportToRandomServer()
 end
 
